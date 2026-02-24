@@ -4,3 +4,5 @@ torch
 transformers
 soundfile
 scipy
+resemblyzer
+librosa

@@ -1,3 +1,6 @@
+from app.utils.TextNormalizer import TextNormalizer
+
+
 class TextService:
     def __init__(self):
         pass

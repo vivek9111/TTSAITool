@@ -1,17 +1,15 @@
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 from app.api.TtsApi import router as ttsRouter
+from app.core.ModelRegistry import ModelRegistry
 
-class MainApplication:
-    def __init__(self):
-        self.app = FastAPI()
-        self.registerRoutes()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Startup running")
+    ModelRegistry.loadModels()
+    print("=== MODEL LOADED ===")
+    yield
+    print("Shutdown running")
 
-    def registerRoutes(self):
-        self.app.include_router(ttsRouter)
-
-    def getApp(self):
-        return self.app
-
-
-mainApplication = MainApplication()
-app = mainApplication.getApp()
+app = FastAPI(lifespan=lifespan)
+app.include_router(ttsRouter)

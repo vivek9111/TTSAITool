@@ -2,7 +2,6 @@ import torch
 import soundfile as sf
 from transformers import AutoTokenizer, VitsModel
 import os
-import uuid
 
 class HindiVitsLoader:
     def __init__(self):
@@ -30,6 +29,6 @@ class HindiVitsLoader:
             output = self.model(**inputs)
 
         # output.waveform shape: (1, num_samples)
-        audio = output.waveform[0].cpu().numpy()
+        audio = output.waveform.squeeze().cpu().numpy()
 
         return audio
