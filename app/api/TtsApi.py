@@ -1,16 +1,25 @@
+import shutil
+import os
 from fastapi import APIRouter, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 from app.services.TextService import TextService
 from app.services.TtsService import TtsService
 from app.services.AudioService import AudioService
-from app.schemas.TtsSchema import TtsRequest
+from app.schemas.TtsSchema import TtsRequest, CloneRequest
+from fastapi import APIRouter, UploadFile, File, HTTPException
+from app.services.VoiceService import VoiceService
+from app.services.VoiceCloningService import VoiceCloningService
 
 
 router = APIRouter()
-
 textService = TextService()
+voiceService = VoiceService()
 ttsService = TtsService()
 audioService = AudioService()
+voiceCloningService = VoiceCloningService()
+
+TEMP_DIR = "temp"
+os.makedirs(TEMP_DIR, exist_ok=True)
 
 @router.get("/health")
 def healthCheck():
@@ -77,3 +86,41 @@ async def websocketTts(ws: WebSocket):
 
     except WebSocketDisconnect:
         pass
+
+@router.post("/voices/register")
+async def registerVoice(file: UploadFile = File(...)):
+    if not file.filename.endswith(".wav"):
+        raise HTTPException(status_code=400, detail="Only WAV files supported.")
+
+    tempPath = os.path.join(TEMP_DIR, file.filename)
+
+    try:
+        with open(tempPath, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        voiceId = voiceService.registerVoice(tempPath)
+
+        return {"voiceId": voiceId}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
+        if os.path.exists(tempPath):
+            os.remove(tempPath)
+
+@router.post("/clone")
+async def cloneVoice(request: CloneRequest):
+    try:
+        audioBytes = voiceCloningService.cloneVoiceFromId(
+            request.voiceId,
+            request.text
+        )
+
+        return Response(content=audioBytes, media_type="audio/wav")
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Voice ID not found.")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

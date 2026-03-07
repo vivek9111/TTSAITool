@@ -11,5 +11,8 @@ class TtsResponse(BaseModel):
     language: str
     voiceId: str
 
+class CloneRequest(BaseModel):
+    voiceId: str
+    text: str
 
     

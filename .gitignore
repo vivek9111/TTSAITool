@@ -6,6 +6,7 @@ __pycache__/
 # Distribution / packaging
 output/
 generated_audio/
+voices/
 bin/
 build/
 develop-eggs/
