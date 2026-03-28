@@ -1,6 +1,5 @@
 from app.models.HindiVitsLoader import HindiVitsLoader
-from TTS.api import TTS
-import torch
+from app.models.VoiceCloningLoader import VoiceCloningLoader
 
 
 class ModelRegistry:
@@ -14,9 +13,8 @@ class ModelRegistry:
         print("Hindi model loaded.")
 
         print("Loading XTTS v2 model...")
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        cls._xttsModel = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
-        print("XTTS model loaded on", device)
+        cls._xttsModel = VoiceCloningLoader()
+        print("XTTS model loaded.")
 
     @classmethod
     def getHindiTtsModel(cls):

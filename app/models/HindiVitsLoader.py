@@ -1,5 +1,4 @@
 import torch
-import soundfile as sf
 from transformers import AutoTokenizer, VitsModel
 import os
 
