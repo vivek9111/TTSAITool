@@ -25,6 +25,14 @@ class TtsService:
             raise ValueError("Only Hindi supported")
 
         clean = TextNormalizer.normalizeHindi(text)
+        
+        if not clean:
+            raise ValueError("Input text is empty")
+        
         vitsLoader = ModelRegistry.getHindiTtsModel()
+        
+        if vitsLoader is None:
+            raise RuntimeError("Hindi TTS model not loaded")
+        
         pcm = vitsLoader.generateAudio(clean)
         return pcm

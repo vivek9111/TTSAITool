@@ -1,5 +1,6 @@
 import unicodedata
 import re
+from nemo_text_processing.text_normalization.normalize import Normalizer
 
 class TextNormalizer:
     @staticmethod
