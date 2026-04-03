@@ -1,5 +1,5 @@
-from app.utils.TextNormalizer import TextNormalizer
 from app.core.ModelRegistry import ModelRegistry
+from app.utils.TextNormalizerIndic import IndicXTTSPreProcessor
 
 class TtsService:
 
@@ -12,7 +12,7 @@ class TtsService:
         if vitsLoader is None:
             raise RuntimeError("Hindi TTS model not loaded")
 
-        cleanText = TextNormalizer.normalizeHindi(text)
+        cleanText = IndicXTTSPreProcessor().clean_for_xtts(text, language)
 
         if not cleanText:
             raise ValueError("Input text is empty")
@@ -24,8 +24,8 @@ class TtsService:
         if language != "hi":
             raise ValueError("Only Hindi supported")
 
-        clean = TextNormalizer.normalizeHindi(text)
-        
+        clean = IndicXTTSPreProcessor().clean_for_xtts(text, language)
+
         if not clean:
             raise ValueError("Input text is empty")
         

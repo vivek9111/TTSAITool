@@ -8,3 +8,4 @@ resemblyzer
 librosa
 setuptools==68.2.2
 TTS
+indic-nlp-library
