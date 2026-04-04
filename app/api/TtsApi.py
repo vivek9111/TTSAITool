@@ -1,7 +1,7 @@
 import shutil
 import os
 from fastapi import APIRouter, Response, WebSocket, WebSocketDisconnect
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from app.services.TextService import TextService
 from app.services.TtsService import TtsService
 from app.services.AudioService import AudioService
@@ -112,12 +112,12 @@ async def registerVoice(file: UploadFile = File(...)):
 @router.post("/clone")
 async def cloneVoice(request: CloneRequest):
     try:
-        audioBytes = voiceCloningService.cloneVoiceFromId(
+        filePath = voiceCloningService.cloneVoiceFromId(
             request.voiceId,
             request.text
         )
 
-        return Response(content=audioBytes, media_type="audio/wav")
+        return FileResponse(filePath, media_type="audio/wav")
 
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Voice ID not found.")

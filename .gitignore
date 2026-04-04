@@ -39,3 +39,6 @@ htmlcov/
 # IDEs (VS Code, PyCharm)
 .vscode/
 .idea/
+
+# resources
+/indic_nlp_resources/
