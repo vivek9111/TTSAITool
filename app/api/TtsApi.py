@@ -1,5 +1,6 @@
 import shutil
 import os
+from fastapi import Depends, Query
 from fastapi import APIRouter, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, StreamingResponse
 from app.services.TextService import TextService
@@ -44,48 +45,28 @@ def generateTts(request: TtsRequest):
         }
     )
 
-@router.post("/tts/stream")
-def streamTts(request: TtsRequest):
-    pcm = ttsService.streamSpeech(
+@router.get("/tts/stream")
+def streamTts(request: TtsRequest = Depends()):
+    # Get a generator that yields PCM chunks as they are synthesized
+    pcm_generator = ttsService.streamSpeech(
         request.text,
         request.language,
         request.voiceId
     )
 
-    stream = audioService.wav_stream(pcm)
+    # Audio service now processes chunks as they arrive
+    stream = audioService.wav_stream(pcm_generator, sample_rate=16000)
 
     return StreamingResponse(
-        stream,
-        media_type="audio/wav",
-        headers={
-            "Content-Disposition": "inline; filename=tts.wav",
-            "Cache-Control": "no-cache",
-        },
+            stream,
+            media_type="audio/wav",
+            headers={
+                "Content-Type": "audio/wav",
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive"
+            }
     )
 
-@router.websocket("/ws/tts")
-async def websocketTts(ws: WebSocket):
-    await ws.accept()
-
-    try:
-        while True:
-            payload = await ws.receive_json()
-
-            text = payload.get("text", "")
-            language = payload.get("language", "hi")
-            voiceId = payload.get("voiceId", "default")
-
-            pcm = ttsService.streamSpeech(text, language, voiceId)
-
-            for chunk in audioService.wav_stream(pcm):
-                # WebSockets send bytes directly
-                await ws.send_bytes(chunk)
-
-            # Signal end-of-audio
-            await ws.send_text("__END__")
-
-    except WebSocketDisconnect:
-        pass
 
 @router.post("/voices/register")
 async def registerVoice(file: UploadFile = File(...)):
@@ -112,6 +93,9 @@ async def registerVoice(file: UploadFile = File(...)):
 @router.post("/clone")
 async def cloneVoice(request: CloneRequest):
     try:
+        if len(request.text) > 300:
+            raise HTTPException(400, "Text too long")
+
         filePath = voiceCloningService.cloneVoiceFromId(
             request.voiceId,
             request.text
@@ -124,3 +108,59 @@ async def cloneVoice(request: CloneRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+
+@router.get("/clone/stream")
+async def cloneVoice(request: CloneRequest = Depends()):
+    try:
+        # Get the generator that yields audio chunks sentence-by-sentence
+        pcm_generator = voiceCloningService.cloneVoiceStreaming(
+            request.voiceId,
+            request.text,
+            language="hi" # Or request.language if provided
+        )
+
+        # Use the AudioService to wrap PCM in a WAV container
+        # IMPORTANT: XTTS v2 uses 24000Hz, unlike MMS which uses 16000Hz
+        stream = audioService.wav_stream(pcm_generator, sample_rate=24000)
+
+        return StreamingResponse(
+            stream,
+            media_type="audio/wav",
+            headers={
+                "Content-Disposition": "inline; filename=clone_tts.wav",
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive"
+            },
+        )
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Voice ID not found.")
+    except Exception as e:
+        print(f"Streaming Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    
+    
+@router.websocket("/ws/tts")
+async def websocketTts(ws: WebSocket):
+    await ws.accept()
+
+    try:
+        while True:
+            payload = await ws.receive_json()
+
+            text = payload.get("text", "")
+            language = payload.get("language", "hi")
+            voiceId = payload.get("voiceId", "default")
+
+            pcm = ttsService.streamSpeech(text, language, voiceId)
+
+            for chunk in audioService.wav_stream_speech(pcm):
+                # WebSockets send bytes directly
+                await ws.send_bytes(chunk)
+
+            # Signal end-of-audio
+            await ws.send_text("__END__")
+
+    except WebSocketDisconnect:
+        pass

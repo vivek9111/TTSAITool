@@ -21,18 +21,18 @@ class AudioService:
 
         return buffer.read()
     
-    def wav_stream(self, pcm: np.ndarray, sample_rate: int = 16000, chunk_size: int = 4096):
+    def wav_stream_speech(self, pcm: np.ndarray, sample_rate: int = 16000, chunk_size: int = 4096):
         pcm = np.clip(pcm, -1.0, 1.0)
         pcm16 = (pcm * 32767).astype(np.int16)
 
         # WAV header with unknown length
-        header = self._wav_header(sample_rate)
+        header = self._wav_header_speech(sample_rate)
         yield header
 
         for i in range(0, len(pcm16), chunk_size):
             yield pcm16[i:i+chunk_size].tobytes()
 
-    def _wav_header(self, sample_rate):
+    def _wav_header_speech(self, sample_rate):
         return struct.pack(
             "<4sI4s4sIHHIIHH4sI",
             b"RIFF",
@@ -48,4 +48,31 @@ class AudioService:
             16,
             b"data",
             0xFFFFFFFF,
+        )
+        
+
+    def wav_stream(self, pcm_generator, sample_rate: int = 16000):
+        # 1. Yield the header once at the very start
+        yield self._wav_header(sample_rate)
+
+        # 2. Iterate through each sentence's audio chunk
+        for pcm in pcm_generator:
+            if pcm is None: continue
+            
+            # Normalize and convert to 16-bit PCM
+            pcm = np.clip(pcm, -1.0, 1.0)
+            pcm16 = (pcm * 32767).astype(np.int16)
+            
+            # Yield raw bytes in small chunks to keep the buffer moving
+            chunk_size = 4096
+            for i in range(0, len(pcm16), chunk_size):
+                yield pcm16[i:i+chunk_size].tobytes()
+                
+    def _wav_header(self, sample_rate):
+        # 0xFFFFFFFF tells the browser the length is unknown (streaming)
+        return struct.pack(
+            "<4sI4s4sIHHIIHH4sI",
+            b"RIFF", 0xFFFFFFFF, b"WAVE", b"fmt ",
+            16, 1, 1, sample_rate, sample_rate * 2, 2, 16,
+            b"data", 0xFFFFFFFF
         )
